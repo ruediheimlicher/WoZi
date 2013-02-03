@@ -1,0 +1,70 @@
+		// TWI-PINs ueberwachen
+		/************ SCL SDA checken *************/
+		/*
+		
+		#define TWILED 5
+		uint8_t EEMEM WDT_ErrCount0;	// Akkumulierte WDT Restart Events
+
+		uint16_t twi_LO_count0=0;
+		uint16_t twi_LO_count1=0;
+		uint8_t twierrcount=0;
+		uint8_t eepromWDT_Count0=0;
+
+		
+		*/
+				
+		if ((!(PINC & (1<<4)) || !(PINC & (1<<5)))) 	// SCL oder SDA ist low
+		{
+			// Low-Zeit messen
+			twi_LO_count0++;
+			if (twi_LO_count0 == 0x0AFF)
+			{
+				twi_LO_count0=0;
+				twi_LO_count1++;
+				if (twi_LO_count1>=0x0002) //	
+				{
+					PORTD |= (1<<TWILED); //TWI-LED ON
+					twierrcount++;
+					
+					if (twi_LO_count1 == 0x0004) // TWI neu starten
+					{
+						//twi_LO_count1=0;
+						PORTD &= ~(1<<TWILED); // TWI-LED OFF
+						lcd_gotoxy(13,1);
+						lcd_puts("neu\0");
+						
+						TWBR =0;
+						init_twi_slave (SLAVE_ADRESSE);
+					}
+					//lcd_gotoxy(6,1);
+					//lcd_puts("st \0");
+					//lcd_puthex(twierrcount);
+					//delay_ms(10);
+					if (twi_LO_count1== 0x0006)	// reset
+					{
+						//twi_LO_count1=0;
+						eepromWDT_Count0=eeprom_read_byte(&WDT_ErrCount0); //letzte gespeicherte zeit
+						lcd_gotoxy(0,1);
+						lcd_puts("wdt \0");
+						lcd_puthex(eepromWDT_Count0);
+						delay_ms(1000);
+						eepromWDT_Count0++;
+						eeprom_write_byte(&WDT_ErrCount0,eepromWDT_Count0);
+						
+						wdt_enable (WDTO_15MS);
+						delay_ms(20);
+					}
+				}
+			}
+		}
+		else
+		{
+			PORTD &= ~(1<<TWILED); //TWI-LED OFF
+			//lcd_gotoxy(9,1);
+			//lcd_puts("  \0");
+			//lcd_puthex(twierrcount);
+			twi_LO_count0=0;
+			twi_LO_count1=0;
+		}
+		
+		/*************************/

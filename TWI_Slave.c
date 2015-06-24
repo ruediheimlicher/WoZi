@@ -26,7 +26,7 @@
 #include "crc8.c"
 
 //***********************************
-//Labor							*
+//WOZI							*
 #define SLAVE_ADRESSE 0x66 //		*
 //									*
 //***********************************
@@ -46,7 +46,7 @@
 #define WDTBIT			7
 
 
-#define WOZIPORT	PORTD		// Ausgang fuer LABOR
+#define WOZIPORT	PORTD		// Ausgang fuer WOZI
 #define LAMPEBIT 0
 
 #define SERVOPORT	PORTD		// Ausgang fuer Servo
@@ -63,17 +63,18 @@
 //#define LAMPEEIN 4
 //#define LAMPEAUS 5
 
-// Definitionen Slave Labor
+// Definitionen Slave WOZI
 #define LAMPEEIN 0
 #define LAMPEAUS 1
 
 
 #define LOOPLEDPORT		PORTD
+#define LOOPLEDDDR		DDRD
 #define LOOPSTEP			0xEFFF
 
 // Define fuer Slave:
 #define LOOPLED			4
-#define TWILED			5
+#define TWILED          5
 
 // Define fuer mySlave PORTD:
 //#define LOOPLED			2
@@ -99,6 +100,12 @@
 #define BUZZERPIN		0
 
 #define INNEN			1	//	Byte fuer INNENtemperatur
+
+
+#define RADIATORPORT          PORTD
+#define RADIATORDDR           DDRD
+#define RADIATORIMPULSPIN		7		// Impuls für Radiator
+#define RADIATORSTATUSPIN		6		// Status fuer Radiator
 
 
 //#define MAXSENSORS 2
@@ -389,7 +396,7 @@ void timer2 (uint8_t wert)
 	OCR2 = wert;					//Setzen des Compare Registers auf Servoimpulsdauer
 } 
 
-ISR (SIG_OVERFLOW0) 
+ISR(TIMER0_OVF_vect)
 { 
 	ADCImpuls++;
 	Servopause++;
@@ -463,7 +470,7 @@ void main (void)
 	lcd_puts("READY\0");
 	
 	WOZIPORT &= ~(1<<LAMPEEIN);//	LAMPEEIN sicher low
-	WOZIPORT &= ~(1<<LAMPEAUS);//	LAMPEAus sicher low
+	WOZIPORT &= ~(1<<LAMPEAUS);//	LAMPEAUS sicher low
 	WOZIPORT |= (1<<LAMPEAUS);
 	delay_ms(10);
 	WOZIPORT &= ~(1<<LAMPEAUS);
@@ -553,7 +560,7 @@ void main (void)
 		if (radiatorcount==LOOPSTEP)
 		{
 			radiatorcount=0;
-			if (Radiatorstatus & 0x03)
+			if (Radiatorstatus & 0x03) // status ist > 0
 			{
 				RADIATORPORT |= (1<<RADSTATUSPIN); // Statusanzeige einschalten
 				RADIATORPORT |= (1<<RADIMPULSPIN); // Radiatorheizung ein, Ausschalten je nach Code 
@@ -596,6 +603,7 @@ void main (void)
 			{
 				case 0:
 					RADIATORPORT &= ~(1<<RADIMPULSPIN); // Heizung sicher aussschalten
+               RADIATORPORT &= ~(1<<RADIATORSTATUSPIN); // Statusanzeige ausschalten
 					break;
 					
 				case 1:
@@ -608,10 +616,12 @@ void main (void)
 					break;
 					
 				case 2:
+            case 3:
 				{
 					if (radiatorcount >= RADSTUFE2)
 					{
 						RADIATORPORT &= ~(1<<RADIMPULSPIN); // Heizung wieder aussschalten
+                  RADIATORPORT &= ~(1<<RADIATORSTATUSPIN); // Statusanzeige ausschalten
 					}
 				}
 					break;
@@ -809,27 +819,7 @@ void main (void)
 			lcd_puts("R:\0");
 			lcd_puthex(Radiatorstatus);
 
-			// tx_buffer laden
-				
-				// Temperatur lesen
-				/*
-				initADC(AUSSEN);
-				uint16_t temperaturBuffer=(readKanal(AUSSEN));
-				lcd_gotoxy(0,0);
-				lcd_puts("A \0");
-				//lcd_puthex(temperaturBuffer>>2);
-				
-				// neues Thermometer
-				//lcd_putint(temperaturBuffer>>2);
-				lcd_put_tempAbMinus20((temperaturBuffer>>2)); 
-				//lcd_puts("A0+\0");
-				//lcd_put_tempbis99(temperaturBuffer>>1);//Doppelte Auflösung	
-				*/
-										
-				//txbuffer[AUSSEN]=(temperaturBuffer>>2);
-				
-				
-				
+					
 				
 
 				
@@ -926,9 +916,7 @@ void main (void)
 					{
 						Servowert--;
 						Servoimpulsdauer=Servoposition[Servowert];
-						
-					}
-					
+               }
 					
 					if (Servoimpulsdauer>19)
 					{

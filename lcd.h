@@ -34,6 +34,8 @@
 
 /* AVR port and pins connected to '164 and/or LCD */
 #define LCD_PORT                PORTB
+#define LCD_DDR                 DDRB
+
 
 //	defines fuer Slave:
 #define LCD_RSDS_PIN            5

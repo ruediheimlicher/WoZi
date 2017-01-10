@@ -521,7 +521,6 @@ void main (void)
 	// DS1820 init-stuff begin
 	uint8_t i=0;
 	uint8_t nSensors=0;
-	//lcd_send_char('A');
 	ow_reset();
 	gNsensors = search_sensors();
 	
@@ -713,8 +712,6 @@ void main (void)
 			{
 				txbuffer[INNEN] +=1;
 			}
-			
-			
 
 			/*
 			lcd_cls();
@@ -726,11 +723,8 @@ void main (void)
 			*/
 			{
 				//
-				
 				if (rxbuffer[3] < 6)
-				
 				{
-					
 					if (Servorichtung) // vorwŠrts
 					{
 							Servowert++;
@@ -738,20 +732,14 @@ void main (void)
 							{
 							Servorichtung=0;
 							}
-						
 					}
 					else
 					{
-						
 							Servowert--;
 							if (Servowert==0)
 							{
 							Servorichtung=1;
 							}
-						
-						
-						
-						
 					}
 					/*
 					lcd_gotoxy(0,12);
@@ -760,16 +748,10 @@ void main (void)
 					lcd_puts(" W:\0");
 					lcd_putint2(Servowert);
 					*/
-					
-					
 					Servowert=rxbuffer[3];
-					
 					ServoimpulsdauerPuffer=Servoposition[Servowert];
-						
 				}
-			
          }
-			
 			//RingD2(2);
 			//delay_ms(20);
 			
@@ -819,18 +801,9 @@ void main (void)
 			lcd_puts("R:\0");
 			lcd_puthex(Radiatorstatus);
 
-					
-				
-
-				
 				//	PIN B4 abfragen
 				txbuffer[4]=(PINB & (1<< 4));
-			
-			
-			
-			
-			
-			rxdata=0;
+				rxdata=0;
 			//PORTD &= ~(1<<PD3);
 
 		}

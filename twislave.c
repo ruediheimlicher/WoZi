@@ -194,167 +194,167 @@ ein Statuscode, anhand dessen die Situation festgestellt werden kann.
 */
 ISR (TWI_vect)  
 {
-	wdt_reset();
-	uint8_t data=0;
-	//		BlinkD3(2);
-	//lcd_cls();
-	//lcd_puts("ISR\0");
-	//lcd_puthex(TW_STATUS);
-	//twidelay_ms(lcd_delay);
-	TWI_Pause=0; // Servo ausschalten
-	rxdata=1;
-	switch (TW_STATUS) //TWI-Statusregister prüfen und nötige Aktion bestimmen 
-	{
-			
-		case TW_SR_SLA_ACK: // 0x60 Slave Receiver, wurde adressiert	
-			//		lcd_cls();
-			//		lcd_puts("TWI-GO\0");
-			//		twidelay_ms(lcd_delay);
-			//		lcd_cls();
-			//		lcd_gotoxy(0,0);
-			//		lcd_puts("R \0");
-			twi |=(1<<0);
-			TWCR_ACK; // nächstes Datenbyte empfangen, ACK danach
-			
-			//		buffer_adr=0xFF; //Bufferposition ist undefiniert
-			
-			break;
-			
-		case TW_SR_DATA_ACK: // 0x80 Slave Receiver, Daten empfangen
-			data=TWDR; //Empfangene Daten auslesen
-			twi |=(1<<1);
-			if (buffer_adr == 0xFF) //erster Zugriff, Bufferposition setzen
-			{
-				//			lcd_gotoxy(0,1);
-				//			lcd_puts("First \0");
-				//			lcd_putint(buffer_adr);
-				
-				//			twidelay_ms(lcd_delay);
-				
-				//Kontrolle ob gewünschte Adresse im erlaubten bereich
-				if(data<buffer_size)
-				{
-					buffer_adr= data; //Bufferposition wie adressiert setzen
-				}
-				else
-				{
-					buffer_adr=0; //Adresse auf Null setzen. Ist das sinnvoll?
-				}				
-				TWCR_ACK;	// nächstes Datenbyte empfangen, ACK danach, um nächstes Byte anzufordern
-			}
-			else //weiterer Zugriff, Daten empfangen
-			{
-				if (buffer_adr==0)
-				{
-					//lcd_cls();
-					
-				}
-				/*
-				 lcd_gotoxy(2,0);
-				 lcd_puts("w adr: \0");
-				 
-				 lcd_gotoxy(8,0);
-				 lcd_putint(buffer_adr);
-				 lcd_putc(' ');
-				 lcd_putint(data);
-				 //				twidelay_ms(lcd_delay);
-				 
-				 
-				 */			
-				rxbuffer[buffer_adr]=data;	//	Daten in Buffer schreiben
-				//			lcd_gotoxy(0,0);
-				//			lcd_puts("Bytes: \0");
-				//			lcd_gotoxy(8,0);
-				//			lcd_putint(buffer_adr);
-				//			delay_ms(2000);
-				//rxdata |= (1<<buffer_adr);	//	Bit markieren
-				rxdata=1;
-				/*
-				 lcd_gotoxy(0,1);
-				 lcd_puts("rxbuf: \0");
-				 lcd_putint(rxbuffer[buffer_adr]);
-				 twidelay_ms(lcd_delay);
-				 */			
-				buffer_adr++;				//	Buffer-Adresse weiterzählen für nächsten Schreibzugriff
-				if(buffer_adr<(buffer_size)) //im Buffer ist noch Platz für mehr als ein Byte
-				{
-					//				lcd_gotoxy(16,0);
-					//				lcd_puts("ACK \0");
-					//				twidelay_ms(lcd_delay);
-					
-					TWCR_ACK;// nächstes Datenbyte empfangen, ACK danach, um nächstes Byte anzufordern
-				}
-				else   //es kann nur noch ein Byte kommen, dann ist der Buffer voll
-				{
-					//				lcd_gotoxy(7,0);
-					//				lcd_putint(buffer_adr);
-					//				lcd_gotoxy(16,0);
-					//				lcd_puts("NACK\0");
-					//				lcd_gotoxy(0,1);
-					//				lcd_puts("B0: \0");
-					//				lcd_putint(rxbuffer[0]);
-					//				lcd_puts(" \0");
-					//				lcd_puts("B1: \0");
-					//				lcd_putint(rxbuffer[1]);
-					//				lcd_puts(" \0");				
-					//				twidelay_ms(lcd_delay);
-					buffer_adr = 0xFF;		// buffer_adr wieder als undefiniert setzen
-					TWCR_NACK;//letztes Byte lesen, dann NACK, um vollen Buffer zu signaliseren
-					rxdata=1;
-				}
-			}
-			break;
-			
-			case TW_ST_SLA_ACK: //?!?
-			case TW_ST_DATA_ACK: //0xB8 Slave Transmitter, weitere Daten wurden angefordert
-			//		lcd_gotoxy(0,0);
-			//		lcd_puts("W\0");
-			//		twidelay_ms(lcd_delay);
-			twi |=(1<<2);
-			if (buffer_adr == 0xFF) //zuvor keine Leseadresse angegeben! 
-			{
-				
-				buffer_adr=0;
-			}	
-			//			lcd_gotoxy(3,0);
-			//		lcd_puts("adr: \0");
-			//		lcd_putint(buffer_adr);
-			//		lcd_putc(' ');
-			//		lcd_putint(txbuffer[buffer_adr]);
-			
-			TWDR = txbuffer[buffer_adr]; //Datenbyte senden 
-			buffer_adr++; //bufferadresse für nächstes Byte weiterzählen
-			if(buffer_adr<(buffer_size-1)) //im Buffer ist mehr als ein Byte, das gesendet werden kann
-			{
-				twi |=(1<<3);
-				TWCR_ACK; //nächstes Byte senden, danach ACK erwarten
-			}
-			else
-			{
-				twi |=(1<<4);
-				//				lcd_gotoxy(16,0);
-				//				lcd_puts("NACK\0");
-				
-				TWCR_NACK; //letztes Byte senden, danach NACK erwarten
-				buffer_adr=0xFF; //Bufferposition ist undefiniert
-			}
-			break;
-			
-			case TW_ST_DATA_NACK: //0xC0 Keine Daten mehr gefordert 
-			
-			
-			
-			case TW_SR_DATA_NACK: //0x88 
-			case TW_ST_LAST_DATA: //0xC8  Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
-			case TW_SR_STOP: // 0xA0 STOP empfangen
-			default: 	
-			TWCR_RESET; //Übertragung beenden, warten bis zur nächsten Adressierung
-			//		buffer_adr=0xFF; //Bufferposition ist undefiniert
-			TWI_Pause=1;
-			break;
-			
-			
-	} //end.switch (TW_STATUS)
+   wdt_reset();
+   uint8_t data=0;
+   //		BlinkD3(2);
+   //lcd_cls();
+   //lcd_puts("ISR\0");
+   //lcd_puthex(TW_STATUS);
+   //twidelay_ms(lcd_delay);
+   TWI_Pause=0; // Servo ausschalten
+   rxdata=1;
+   switch (TW_STATUS) //TWI-Statusregister prüfen und nötige Aktion bestimmen 
+   {
+         
+      case TW_SR_SLA_ACK: // 0x60 Slave Receiver, wurde adressiert	
+         //		lcd_cls();
+         //		lcd_puts("TWI-GO\0");
+         //		twidelay_ms(lcd_delay);
+         //		lcd_cls();
+         //		lcd_gotoxy(0,0);
+         //		lcd_puts("R \0");
+         twi |=(1<<0);
+         TWCR_ACK; // nächstes Datenbyte empfangen, ACK danach
+         
+         //		buffer_adr=0xFF; //Bufferposition ist undefiniert
+         
+         break;
+         
+      case TW_SR_DATA_ACK: // 0x80 Slave Receiver, Daten empfangen
+         data=TWDR; //Empfangene Daten auslesen
+         twi |=(1<<1);
+         if (buffer_adr == 0xFF) //erster Zugriff, Bufferposition setzen
+         {
+            //			lcd_gotoxy(0,1);
+            //			lcd_puts("First \0");
+            //			lcd_putint(buffer_adr);
+            
+            //			twidelay_ms(lcd_delay);
+            
+            //Kontrolle ob gewünschte Adresse im erlaubten bereich
+            if(data<buffer_size)
+            {
+               buffer_adr= data; //Bufferposition wie adressiert setzen
+            }
+            else
+            {
+               buffer_adr=0; //Adresse auf Null setzen. Ist das sinnvoll?
+            }				
+            TWCR_ACK;	// nächstes Datenbyte empfangen, ACK danach, um nächstes Byte anzufordern
+         }
+         else //weiterer Zugriff, Daten empfangen
+         {
+            if (buffer_adr==0)
+            {
+               //lcd_cls();
+               
+            }
+            /*
+             lcd_gotoxy(2,0);
+             lcd_puts("w adr: \0");
+             
+             lcd_gotoxy(8,0);
+             lcd_putint(buffer_adr);
+             lcd_putc(' ');
+             lcd_putint(data);
+             //				twidelay_ms(lcd_delay);
+             
+             
+             */			
+            rxbuffer[buffer_adr]=data;	//	Daten in Buffer schreiben
+            //			lcd_gotoxy(0,0);
+            //			lcd_puts("Bytes: \0");
+            //			lcd_gotoxy(8,0);
+            //			lcd_putint(buffer_adr);
+            //			delay_ms(2000);
+            //rxdata |= (1<<buffer_adr);	//	Bit markieren
+            rxdata=1;
+            /*
+             lcd_gotoxy(0,1);
+             lcd_puts("rxbuf: \0");
+             lcd_putint(rxbuffer[buffer_adr]);
+             twidelay_ms(lcd_delay);
+             */			
+            buffer_adr++;				//	Buffer-Adresse weiterzählen für nächsten Schreibzugriff
+            if(buffer_adr<(buffer_size)) //im Buffer ist noch Platz für mehr als ein Byte
+            {
+               //				lcd_gotoxy(16,0);
+               //				lcd_puts("ACK \0");
+               //				twidelay_ms(lcd_delay);
+               
+               TWCR_ACK;// nächstes Datenbyte empfangen, ACK danach, um nächstes Byte anzufordern
+            }
+            else   //es kann nur noch ein Byte kommen, dann ist der Buffer voll
+            {
+               //				lcd_gotoxy(7,0);
+               //				lcd_putint(buffer_adr);
+               //				lcd_gotoxy(16,0);
+               //				lcd_puts("NACK\0");
+               //				lcd_gotoxy(0,1);
+               //				lcd_puts("B0: \0");
+               //				lcd_putint(rxbuffer[0]);
+               //				lcd_puts(" \0");
+               //				lcd_puts("B1: \0");
+               //				lcd_putint(rxbuffer[1]);
+               //				lcd_puts(" \0");				
+               //				twidelay_ms(lcd_delay);
+               buffer_adr = 0xFF;		// buffer_adr wieder als undefiniert setzen
+               TWCR_NACK;//letztes Byte lesen, dann NACK, um vollen Buffer zu signaliseren
+               rxdata=1;
+            }
+         }
+         break;
+         
+      case TW_ST_SLA_ACK: //?!?
+      case TW_ST_DATA_ACK: //0xB8 Slave Transmitter, weitere Daten wurden angefordert
+         //		lcd_gotoxy(0,0);
+         //		lcd_puts("W\0");
+         //		twidelay_ms(lcd_delay);
+         twi |=(1<<2);
+         if (buffer_adr == 0xFF) //zuvor keine Leseadresse angegeben! 
+         {
+            
+            buffer_adr=0;
+         }	
+         //			lcd_gotoxy(3,0);
+         //		lcd_puts("adr: \0");
+         //		lcd_putint(buffer_adr);
+         //		lcd_putc(' ');
+         //		lcd_putint(txbuffer[buffer_adr]);
+         
+         TWDR = txbuffer[buffer_adr]; //Datenbyte senden 
+         buffer_adr++; //bufferadresse für nächstes Byte weiterzählen
+         if(buffer_adr<(buffer_size-1)) //im Buffer ist mehr als ein Byte, das gesendet werden kann
+         {
+            twi |=(1<<3);
+            TWCR_ACK; //nächstes Byte senden, danach ACK erwarten
+         }
+         else
+         {
+            twi |=(1<<4);
+            //				lcd_gotoxy(16,0);
+            //				lcd_puts("NACK\0");
+            
+            TWCR_NACK; //letztes Byte senden, danach NACK erwarten
+            buffer_adr=0xFF; //Bufferposition ist undefiniert
+         }
+         break;
+         
+      case TW_ST_DATA_NACK: //0xC0 Keine Daten mehr gefordert 
+         
+         
+         
+      case TW_SR_DATA_NACK: //0x88 
+      case TW_ST_LAST_DATA: //0xC8  Last data byte in TWDR has been transmitted (TWEA = “0”); ACK has been received
+      case TW_SR_STOP: // 0xA0 STOP empfangen
+      default: 	
+         TWCR_RESET; //Übertragung beenden, warten bis zur nächsten Adressierung
+         //		buffer_adr=0xFF; //Bufferposition ist undefiniert
+         TWI_Pause=1;
+         break;
+         
+         
+   } //end.switch (TW_STATUS)
 } //end.ISR(TWI_vect)
 
 #endif
